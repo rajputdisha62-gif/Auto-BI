@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        AutoBI Dashboard
+    </title>
+
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}"
+    >
+
+
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    >
+
+
+    <script
+        src="https://cdn.plot.ly/plotly-3.3.0.min.js"
+        charset="utf-8"
+    ></script>
+
+
+</head>
+
+
+<body class="dashboard-body">
+
+
+
+<!-- SIDEBAR -->
+
+
+<aside class="sidebar">
+
+
+    <div class="sidebar-brand">
+
+        <i class="bi bi-bar-chart-fill"></i>
+
+        <span>
+            AutoBI
+        </span>
+
+    </div>
+
+
+    <div class="sidebar-section">
+
+        <p class="sidebar-title">
+            DATA SOURCE
+        </p>
+
+
+        <div class="file-info">
+
+            <i class="bi bi-file-earmark-excel"></i>
+
+            <div>
+
+                <small>
+                    Excel File
+                </small>
+
+                <span>
+                    {{ filename }}
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="sidebar-section">
+
+        <p class="sidebar-title">
+            WORKSHEET
+        </p>
+
+
+        <select
+            id="sheet-selector"
+            class="sheet-selector"
+        >
+
+            {% for sheet in sheets %}
+
+                <option
+                    value="{{ sheet }}"
+                    {% if sheet == selected_sheet %}
+                    selected
+                    {% endif %}
+                >
+
+                    {{ sheet }}
+
+                </option>
+
+            {% endfor %}
+
+        </select>
+
+    </div>
+
+
+
+    <div class="sidebar-section">
+
+        <div class="filter-heading">
+
+            <p class="sidebar-title">
+                FILTERS
+            </p>
+
+            <button
+                id="clear-filters"
+                class="clear-filter-button"
+            >
+                Clear
+            </button>
+
+        </div>
+
+
+        {% for column, values in filters.items() %}
+
+        <div class="filter-group">
+
+            <label>
+                {{ column }}
+            </label>
+
+
+            <select
+                class="dashboard-filter"
+                data-column="{{ column }}"
+                multiple
+            >
+
+                {% for value in values %}
+
+                    <option value="{{ value }}">
+                        {{ value }}
+                    </option>
+
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+
+
+    <a
+        href="/"
+        class="upload-new-button"
+    >
+
+        <i class="bi bi-plus-circle"></i>
+
+        Upload New File
+
+    </a>
+
+
+</aside>
+
+
+
+
+<!-- MAIN CONTENT -->
+
+<main class="main-content">
+
+
+    <!-- HEADER -->
+
+    <header class="dashboard-header">
+
+
+        <div>
+
+            <p class="dashboard-label">
+                ANALYTICS DASHBOARD
+            </p>
+
+            <h1>
+                {{ selected_sheet }}
+            </h1>
+
+            <span class="subtitle">
+                Automatically generated from {{ filename }}
+            </span>
+
+        </div>
+
+
+        <div class="header-badge">
+
+            <i class="bi bi-lightning-charge-fill"></i>
+
+            Auto Generated
+
+        </div>
+
+
+    </header>
+
+
+
+ 
+    <!-- DATA QUALITY -->
+
+
+
+    <section class="summary-strip">
+
+
+        <div>
+
+            <span>Rows</span>
+
+            <strong id="summary-rows">
+                {{ "{:,}".format(summary.rows) }}
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <span>Columns</span>
+
+            <strong id="summary-columns">
+                {{ summary.columns }}
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <span>Measures</span>
+
+            <strong>
+                {{ summary.numeric_columns }}
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <span>Dimensions</span>
+
+            <strong>
+                {{ summary.categorical_columns }}
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <span>Completeness</span>
+
+            <strong id="summary-completeness">
+                {{ summary.completeness }}%
+            </strong>
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- KPI CARDS -->
+
+
+    <section
+        class="kpi-grid"
+        id="kpi-container"
+    >
+
+
+        {% for kpi in kpis %}
+
+
+        <div class="kpi-card">
+
+
+            <div class="kpi-icon">
+
+                <i class="bi {{ kpi.icon }}"></i>
+
+            </div>
+
+
+            <div>
+
+                <span>
+                    {{ kpi.title }}
+                </span>
+
+                <h2>
+                    {{ kpi.value }}
+                </h2>
+
+            </div>
+
+
+        </div>
+
+
+        {% endfor %}
+
+
+    </section>
+
+
+
+
+    <!-- CHARTS -->
+
+
+
+    <section
+        class="chart-grid"
+        id="charts-container"
+    >
+
+
+        {% for chart in charts %}
+
+
+        <div class="chart-card">
+
+
+            <div
+                class="plotly-chart"
+                id="chart-{{ loop.index }}"
+                data-chart='{{ chart.figure | safe }}'
+            ></div>
+
+
+        </div>
+
+
+        {% endfor %}
+
+
+    </section>
+
+
+
+
+    <!-- COLUMN INFORMATION -->
+
+
+    <section class="table-card">
+
+
+        <div class="section-header">
+
+            <div>
+
+                <p>
+                    DATA PROFILE
+                </p>
+
+                <h2>
+                    Column Information
+                </h2>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="table-wrapper">
+
+
+            <table>
+
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            Column
+                        </th>
+
+                        <th>
+                            Data Type
+                        </th>
+
+                        <th>
+                            Unique Values
+                        </th>
+
+                        <th>
+                            Missing
+                        </th>
+
+                        <th>
+                            Missing %
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+
+                {% for column in column_info %}
+
+
+                    <tr>
+
+                        <td>
+                            {{ column.column }}
+                        </td>
+
+                        <td>
+                            {{ column.dtype }}
+                        </td>
+
+                        <td>
+                            {{ column.unique }}
+                        </td>
+
+                        <td>
+                            {{ column.missing }}
+                        </td>
+
+                        <td>
+                            {{ column.missing_percentage }}%
+                        </td>
+
+                    </tr>
+
+
+                {% endfor %}
+
+
+                </tbody>
+
+
+            </table>
+
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- DATA PREVIEW -->
+
+    <section class="table-card">
+
+
+        <div class="section-header">
+
+            <div>
+
+                <p>
+                    RAW DATA
+                </p>
+
+                <h2>
+                    Data Preview
+                </h2>
+
+            </div>
+
+
+            <span>
+                First 100 rows
+            </span>
+
+        </div>
+
+
+
+        <div class="table-wrapper">
+
+
+            <table>
+
+
+                <thead>
+
+                    <tr>
+
+                        {% for column in columns %}
+
+                            <th>
+                                {{ column }}
+                            </th>
+
+                        {% endfor %}
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+
+                {% for row in preview_data %}
+
+
+                    <tr>
+
+                        {% for column in columns %}
+
+                            <td>
+                                {{ row[column] }}
+                            </td>
+
+                        {% endfor %}
+
+                    </tr>
+
+
+                {% endfor %}
+
+
+                </tbody>
+
+
+            </table>
+
+
+        </div>
+
+
+    </section>
+
+
+</main>
+
+
+
+<script>
+
+    const FILE_ID =
+        "{{ file_id }}";
+
+</script>
+
+
+<script
+    src="{{ url_for('static', filename='js/dashboard.js') }}"
+></script>
+
+
+</body>
+
+</html>
